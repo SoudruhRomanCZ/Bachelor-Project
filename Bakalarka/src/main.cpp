@@ -10,11 +10,9 @@
 #define ENC_SW_PIN 5
 #define ULT_TRIG_PIN 6
 #define ULT_ECHO_PIN 7
-#define SW1_PIN1 8
-#define SW1_PIN2 9
-#define SW2_PIN1 10
-#define SW2_PIN2 11
-#define BUZ_PIN 12
+#define SW1_PIN 8
+#define SW2_PIN 9
+#define BUZ_PIN 10
 #define MIC_PIN A0
 // #define IO_expander A1 A2 
 
