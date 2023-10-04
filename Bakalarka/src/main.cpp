@@ -8,13 +8,12 @@
 #include "RF24.h"
 
 //define the Arduino pins configuration
-#define WIFI_RX_PIN 0
-#define WIFI_TX_PIN 1
+
 // nRF24L01 vysílač
 // https://navody.dratek.cz/navody-k-produktum/arduino-wifi-modul-nrf24l01.html
 // nastavení propojovacích pinů
-#define CE 6
-#define CS 7
+#define CE 7
+#define CS 8
 // inicializace nRF s piny CE a CS
 RF24 nRF(CE, CS);
 // nastavení adres pro přijímač a vysílač,
@@ -33,8 +32,8 @@ byte adresaVysilac[]= "vysilac00";
 // https://navody.dratek.cz/navody-k-produktum/ultrazvukovy-meric-vzdalenosti-hy-srf05.html
 // připojení potřebné knihovny
 // nastavení propojovacích pinů
-#define pinTrigger    10
-#define pinEcho       11
+#define pinTrigger    3
+#define pinEcho       2
 #define maxVzdalenost 450
 // inicializace měřícího modulu z knihovny
 NewPing sonar(pinTrigger, pinEcho, maxVzdalenost);
@@ -57,7 +56,7 @@ const int MPU_addr=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 
 //#define MIC_PIN A0
-// #define IO_expander A1 A2 
+ 
 
 void setup() {
   // komunikace přes I2C sběrnici
@@ -67,12 +66,12 @@ void setup() {
   Wire.write(0);
   Wire.endTransmission(true);
   // komunikace přes sériovou linku rychlostí 115200 baud
-  Serial.begin(115200);
+  // Serial.begin(115200);
   // inicializace tlačítka joysticku
   pinMode(pinKey, INPUT_PULLUP);
   // komunikace přes sériovou linku rychlostí 9600 baud
   // tuto rychlost používá ultrazvuk a joystick
-  // Serial.begin(9600);
+   Serial.begin(9600);
   // načtení a uložení hodnot pro x a y osy
   nulaX = analogRead(pinX);
   nulaY = analogRead(pinY);
@@ -89,15 +88,20 @@ void setup() {
   // nastavení zapisovacího a čtecího kanálu
   nRF.openWritingPipe(adresaVysilac);
   nRF.openReadingPipe(1,adresaPrijimac);
+  /*
+    //pro prijimac se musi prohodit kanály
+  nRF.openWritingPipe(adresaPrijimac);
+  nRF.openReadingPipe(1,adresaVysilac);
+  */
   // začátek příjmu dat
   nRF.startListening();
 }
 
 void distance() {
-  // načtení vzdálenosti v centimetrech do vytvořené proměnné vzdalenost
+    // načtení vzdálenosti v centimetrech do vytvořené proměnné vzdalenost
   int vzdalenost = sonar.ping_cm();
   // pauza před dalším měřením
-  delay(500);
+  delay(50);
   // pokud byla detekována vzdálenost větší než 0,
   // provedeme další měření
   if (vzdalenost > 0) {
@@ -106,7 +110,7 @@ void distance() {
     // a výsledky budeme přičítat do proměnné vzdalenost
     for (int i = 0; i < 5; i++) {
       vzdalenost += sonar.ping_cm();
-      delay(100);
+      delay(50);
     }
     // v proměnné vzdálenost máme součet posledních 5 měření
     // a musíme tedy provést dělení 5 pro získání průměru
@@ -120,7 +124,7 @@ void distance() {
   // tedy příliš blízko nebo naopak daleko
   else {
     Serial.println("Vzdalenost mezi senzorem a predmetem je mimo merici rozsah.");
-    // delay(500);
+    delay(500);
   }
 }
 
@@ -193,7 +197,7 @@ void pot() {
   Serial.print("Potentionmeter value = ");Serial.println(potV);
 }
 
-void wifi() {
+void wifi_vysilac() {
   // for smyčka pro postupné odeslání
   // hodnot 0 až 3 pro načtení všech dat
   // z přijímače
@@ -252,6 +256,58 @@ void wifi() {
     }
   }
 }
+void wifi_prijimac(){
+    // proměnné pro příjem a odezvu
+  int prijem;
+  unsigned long odezva;
+
+  // v případě, že nRF je připojené a detekuje
+  // příchozí data, začni s příjmem dat
+  if( nRF.available()){
+    // čekání na příjem dat
+    while (nRF.available()) {
+      // v případě příjmu dat se provede zápis
+      // do proměnné prijem
+      nRF.read( &prijem, sizeof(prijem) );
+    }
+    // vytisknutí přijatých dat na sériovou linku
+    Serial.print("Prijata volba: ");
+    Serial.print(prijem);
+    // dekódování přijatých dat
+    switch( prijem ) {
+      // pro známou hodnotu dat (1,2,3)
+      // se odešle odezva:
+      case 1:
+        // v případě 1 odešli počet milisekund
+        // od připojení napájení
+        odezva = millis();
+        break;
+      case 2:
+        // v případě 2 počet sekund
+        // od připojení napájení
+        odezva = millis()/1000;
+        break;
+      case 3:
+        // v případě 3 počet mikrosekund
+        // od připojení napájení
+        odezva = micros();
+        break;
+      // v případě ostatních dat bude odezva 0
+      default:
+        odezva = 0;
+        break;
+    }
+    // ukončení příjmu dat
+    nRF.stopListening();
+    // odeslání odezvy 
+    nRF.write( &odezva, sizeof(odezva) );     
+    // přepnutí do příjmu dat pro další komunikaci
+    nRF.startListening();
+    // vytištění odezvy po sériové lince     
+    Serial.print(", odezva: ");
+    Serial.println(odezva);  
+  }
+}
 
 void encoder() {
 
@@ -266,12 +322,16 @@ void button() {
 }
 
 void loop() {
-  distance();
+  wifi_vysilac();
   delay(1000);
+  //distance();
+  //delay(1000);
+  /*
   joystick();
   delay(1000);
   gyro_accel();
   delay(1000);
   pot();
   delay(1000);
+  */
 }
