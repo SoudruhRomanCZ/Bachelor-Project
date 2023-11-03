@@ -96,7 +96,7 @@ void setup() {
   // začátek příjmu dat
   nRF.startListening();
 }
-
+/*
 void distance() {
     // načtení vzdálenosti v centimetrech do vytvořené proměnné vzdalenost
   int vzdalenost = sonar.ping_cm();
@@ -196,7 +196,7 @@ void pot() {
   int potV = analogRead(POT_PIN);
   Serial.print("Potentionmeter value = ");Serial.println(potV);
 }
-
+*/
 void wifi_vysilac() {
   // for smyčka pro postupné odeslání
   // hodnot 0 až 3 pro načtení všech dat
